@@ -48,6 +48,7 @@
 #include "config_wm8960.h"
 #include "config_sii902x.h"
 #include "config_sgtl5000.h"
+#include "config_max98091.h"
 #include "config_tc358743.h"
 
 #ifdef BRILLO
@@ -131,6 +132,7 @@ struct audio_card *audio_card_list[] = {
     &wm8960_card,
     &sii902x_card,
     &sgtl5000_card,
+    &max98091_card,
     &tc358743_card,
     &null_card,
 };
