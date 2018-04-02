@@ -16,7 +16,7 @@
 /* Copyright (C) 2012-2016 Freescale Semiconductor, Inc. */
 
 #define LOG_TAG "audio_hw_primary"
-//#define LOG_NDEBUG 0
+#define LOG_NDEBUG 0
 
 #include <errno.h>
 #include <pthread.h>
