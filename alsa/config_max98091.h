@@ -123,7 +123,7 @@ static struct audio_card  max98091_card = {
             AUDIO_DEVICE_IN_DEFAULT),
     .defaults            = defaults_MAX98091,
     .bt_output           = NULL,
-    .speaker_output      = hs_output_MAX98091,
+    .speaker_output      = speaker_output_MAX98091,
     .hs_output           = hs_output_MAX98091,
     .earpiece_output     = NULL,
     .vx_hs_mic_input     = NULL,
