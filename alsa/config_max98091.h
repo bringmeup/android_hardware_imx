@@ -106,11 +106,20 @@ static struct route_setting defaults_MAX98091[] = {
     SND_ROUTE_STR(MIXER_MAX98091_SIDETONE_ENABLE_RIGHT, "Normal"),
 
     /*
-     * This controls are not properly implemented in MAX98090 codec
-     * so the values of these are code pernamentyl in codec register.
+     * Analog Amplifier Gain Boost
+     *
+     * Possible values are: "Disabled", "0db", "20db", "30db".
      */
-    // SND_ROUTE_INT(MIXER_MAX98091_MIC2_BOOST_VOL, 0),
-    // SND_ROUTE_INT(MIXER_MAX98091_MIC2_VOL, 0),
+    SND_ROUTE_STR(MIXER_MAX98091_MIC1_BOOST_VOL, "30db"),
+    SND_ROUTE_STR(MIXER_MAX98091_MIC2_BOOST_VOL, "30db"),
+
+    /*
+     * Analog Amplifier Gain Volume
+     *
+     * Possible values are "0db"..."20db"
+     */
+    SND_ROUTE_STR(MIXER_MAX98091_MIC1_VOL, "20db"),
+    SND_ROUTE_STR(MIXER_MAX98091_MIC2_VOL, "20db"),
 
     /*
      * ADC Boost Left/Right Volume is mapped as below:
