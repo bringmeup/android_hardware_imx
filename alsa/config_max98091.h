@@ -20,93 +20,172 @@
 
 #include "audio_hardware.h"
 
+#define MIXER_MAX98091_MIC1_MUX "MIC1 Mux"
+#define MIXER_MAX98091_MIC2_MUX "MIC2 Mux"
+#define MIXER_MAX98091_MIC1_BOOST_VOL "MIC1 Boost Volume"
+#define MIXER_MAX98091_MIC2_BOOST_VOL "MIC2 Boost Volume"
+#define MIXER_MAX98091_MIC1_VOL "MIC1 Volume"
+#define MIXER_MAX98091_MIC2_VOL "MIC2 Volume"
+#define MIXER_MAX98091_ZERO_CROSS_DET "Zero-Crossing Detection"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_IN12 "Left ADC Mixer IN12 Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_IN34 "Left ADC Mixer IN34 Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_IN56 "Left ADC Mixer IN56 Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_LINEA "Left ADC Mixer LINEA Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_LINEB "Left ADC Mixer LINEB Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_MIC1 "Left ADC Mixer MIC1 Switch"
+#define MIXER_MAX98091_LEFT_ADC_MIXER_MIC2 "Left ADC Mixer MIC2 Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_IN12 "Right ADC Mixer IN12 Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_IN34 "Right ADC Mixer IN34 Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_IN56 "Right ADC Mixer IN56 Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_LINEA "Right ADC Mixer LINEA Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_LINEB "Right ADC Mixer LINEB Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_MIC1 "Right ADC Mixer MIC1 Switch"
+#define MIXER_MAX98091_RIGHT_ADC_MIXER_MIC2 "Right ADC Mixer MIC2 Switch"
+#define MIXER_MAX98091_ADCHP "ADC High Performance Mode"
+#define MIXER_MAX98091_OSR "ADC Oversampling Rate"
+#define MIXER_MAX98091_ADC_QUANTIZER_DITHER "ADC Quantizer Dither"
+#define MIXER_MAX98091_DMIC_MUX "DMIC Mux"
+#define MIXER_MAX98091_FILTER_MODE "Filter Mode"
+#define MIXER_MAX98091_REC_DC_BLOCKING "Record Path DC Blocking"
+#define MIXER_MAX98091_BIQUAD_SWITCH "Biquad Switch"
+#define MIXER_MAX98091_SIDETONE_ENABLE_LEFT "STENL Mux"
+#define MIXER_MAX98091_SIDETONE_ENABLE_RIGHT "STENR Mux"
+#define MIXER_MAX98091_ADC_BOOST_VOLUME_LEFT "ADCL Boost Volume"
+#define MIXER_MAX98091_ADC_BOOST_VOLUME_RIGHT "ADCR Boost Volume"
+#define MIXER_MAX98091_ADC_VOLUME_LEFT "ADCL Volume"
+#define MIXER_MAX98091_ADC_VOLUME_RIGHT "ADCR Volume"
+
+#define MIXER_MAX98091_RIGHT_SPEAKER_MIXER_RIGHT_DAC_SWITCH \
+    "Right Speaker Mixer Right DAC Switch"
+#define MIXER_MAX98091_LEFT_SPEAKER_MIXER_LEFT_DAC_SWITCH \
+    "Left Speaker Mixer Left DAC Switch"
+#define MIXER_MAX98091_RIGHT_HEADPHONE_MIXER_RIGHT_DAC_SWITCH \
+    "Right Headphone Mixer Right DAC Switch"
+#define MIXER_MAX98091_LEFT_HEADPHONE_MIXER_LEFT_DAC_SWITCH \
+    "Left Headphone Mixer Left DAC Switch"
+
+#define MIXER_MAX98091_HEADPHONE_VOLUME "Headphone Volume"
+#define MIXER_MAX98091_SPEAKER_VOLUME "Speaker Volume"
+
+#define SND_ROUTE(_ctl_name, _intval, _strval) \
+    { .ctl_name = _ctl_name, .intval = _intval, .strval = _strval }
+#define SND_ROUTE_INT(_ctl_name, _intval) \
+    { .ctl_name = _ctl_name, .intval = _intval, .strval = NULL }
+#define SND_ROUTE_STR(_ctl_name, _strval) \
+    { .ctl_name = _ctl_name, .intval = 0, .strval = _strval }
+#define SND_ROUTE_NULL \
+    { .ctl_name = NULL }
+
 /* These are values that never change */
 static struct route_setting defaults_MAX98091[] = {
-    {   
-        .ctl_name = "Headphone Volume",
-        .intval = 26,
-    },
-    {
-        .ctl_name = "Speaker Volume",
-        .intval = 20,
-    },
-    {
-        .ctl_name = NULL,
-    },
+    SND_ROUTE_STR(MIXER_MAX98091_MIC1_MUX, "IN12"),
+    SND_ROUTE_STR(MIXER_MAX98091_MIC2_MUX, "IN56"),
+    SND_ROUTE_INT(MIXER_MAX98091_ZERO_CROSS_DET, 0), // Negative bit - ENABLED
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_IN12, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_IN34, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_IN56, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_LINEA, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_LINEB, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_MIC1, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_MIC2, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_IN12, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_IN34, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_IN56, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_LINEA, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_LINEB, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_MIC1, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_MIC2, 0),
+    SND_ROUTE_STR(MIXER_MAX98091_ADCHP, "High Performance"),
+    SND_ROUTE_STR(MIXER_MAX98091_OSR, "128*fs"),
+    SND_ROUTE_INT(MIXER_MAX98091_ADC_QUANTIZER_DITHER, 1), // This may introduce a noise
+    SND_ROUTE_STR(MIXER_MAX98091_DMIC_MUX, "ADC"),
+    SND_ROUTE_STR(MIXER_MAX98091_FILTER_MODE, "Music"),
+    SND_ROUTE_INT(MIXER_MAX98091_REC_DC_BLOCKING, 1),
+    SND_ROUTE_INT(MIXER_MAX98091_BIQUAD_SWITCH, 0),
+    SND_ROUTE_STR(MIXER_MAX98091_SIDETONE_ENABLE_LEFT, "Normal"),
+    SND_ROUTE_STR(MIXER_MAX98091_SIDETONE_ENABLE_RIGHT, "Normal"),
+
+    /*
+     * This controls are not properly implemented in MAX98090 codec
+     * so the values of these are code pernamentyl in codec register.
+     */
+    // SND_ROUTE_INT(MIXER_MAX98091_MIC2_BOOST_VOL, 0),
+    // SND_ROUTE_INT(MIXER_MAX98091_MIC2_VOL, 0),
+
+    /*
+     * ADC Boost Left/Right Volume is mapped as below:
+     *
+     * CTRL  AMP
+     * ----------
+     * 0     0db
+     * 1    +6db
+     * 2    +12db
+     * 3    +18db
+     * 4    +24db
+     * 5    +30db
+     * 6    +36db
+     * 7    +43db
+     */
+    SND_ROUTE_INT(MIXER_MAX98091_ADC_BOOST_VOLUME_LEFT, 1),
+    SND_ROUTE_INT(MIXER_MAX98091_ADC_BOOST_VOLUME_RIGHT, 1),
+
+    /*
+     * ADC Volume Left/Right controls are managed in stupid way.
+     *
+     * First in maxim spec register 0x17 (Left) and 0x18 (Right) ADC
+     * Gain Configurations have amplifier values from +3db (0x0) to
+     * -12db (0xF). Second the mixer control give ability to set a value
+     * since 0 to 15 but it's not translate in linear way to register value.
+     *
+     * After few dumps i2c register the control values are mapped as below:
+     *
+     * CTRL  REG   AMP
+     * -----------------
+     *  0    0xf  -12db
+     *  1    0xe  -11db
+     *  2    0xd  -10db
+     *  3    0xc  -9db
+     *  4    0xb  -8db
+     *  5    0xa  -7db
+     *  6    0x9  -6db
+     *  7    0x8  -5db
+     *  8    0x7  -4db
+     *  9    0x6  -3db
+     *  10   0x5  -2db
+     *  11   0x4  -1db
+     *  12   0x3   0b
+     *  13   0x2  +1db
+     *  14   0x1  +2db
+     *  15   0x0  +3db
+     */
+    SND_ROUTE_INT(MIXER_MAX98091_ADC_VOLUME_LEFT, 12),
+    SND_ROUTE_INT(MIXER_MAX98091_ADC_VOLUME_RIGHT, 12),
+
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_SPEAKER_MIXER_RIGHT_DAC_SWITCH, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_SPEAKER_MIXER_LEFT_DAC_SWITCH, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_HEADPHONE_MIXER_RIGHT_DAC_SWITCH, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_HEADPHONE_MIXER_LEFT_DAC_SWITCH, 0),
+    SND_ROUTE_INT(MIXER_MAX98091_HEADPHONE_VOLUME, 26),
+    SND_ROUTE_INT(MIXER_MAX98091_SPEAKER_VOLUME, 20),
+    SND_ROUTE_NULL
 };
 
 static struct route_setting speaker_output_MAX98091[] = {
-    {
-        .ctl_name = "Right Speaker Mixer Right DAC Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = "Left Speaker Mixer Left DAC Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = NULL,
-    },
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_SPEAKER_MIXER_RIGHT_DAC_SWITCH, 1),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_SPEAKER_MIXER_LEFT_DAC_SWITCH, 1),
+    SND_ROUTE_NULL
 };
 
 static struct route_setting hs_output_MAX98091[] = {
-    {
-        .ctl_name = "Right Headphone Mixer Right DAC Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = "Left Headphone Mixer Left DAC Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = NULL,
-    },
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_HEADPHONE_MIXER_RIGHT_DAC_SWITCH, 1),
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_HEADPHONE_MIXER_LEFT_DAC_SWITCH, 1),
+    SND_ROUTE_NULL
 };
 
 static struct route_setting mm_main_mic_input_MAX98091[] = {
-    {
-        .ctl_name = "MIC2 Volume",
-        .intval = 18,
-    },
-    {
-        .ctl_name = "ADCL Volume",
-        .intval = 12,
-    },
-    {
-        .ctl_name = "ADCR Volume",
-        .intval = 12,
-    },
-    {
-        .ctl_name = "Record Path DC Blocking",
-        .intval = 1,
-    },
-    {
-        .ctl_name = "MIC2 Mux",
-        .strval = "IN56",
-    },
-    {
-        .ctl_name = "Right ADC Mixer MIC1 Switch",
-        .intval = 0,
-    },
-    {
-        .ctl_name = "Right ADC Mixer MIC2 Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = "Left ADC Mixer MIC1 Switch",
-        .intval = 0,
-    },
-    {
-        .ctl_name = "Left ADC Mixer MIC2 Switch",
-        .intval = 1,
-    },
-    {
-        .ctl_name = "DMIC Mux",
-        .strval = "ADC",
-    },
-    {
-        .ctl_name = NULL,
-    },
+    SND_ROUTE_INT(MIXER_MAX98091_LEFT_ADC_MIXER_MIC2, 1),
+    SND_ROUTE_INT(MIXER_MAX98091_RIGHT_ADC_MIXER_MIC2, 1),
+    SND_ROUTE_NULL
 };
 
 /* ALSA cards for IMX, these must be defined according different board / kernel config*/
