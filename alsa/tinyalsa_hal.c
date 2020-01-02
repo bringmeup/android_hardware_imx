@@ -37,6 +37,8 @@
 #include <audio_utils/echo_reference.h>
 #include <hardware/audio_effect.h>
 #include <audio_effects/effect_aec.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #include "audio_hardware.h"
 #include "config_wm8962.h"
@@ -50,6 +52,7 @@
 #include "config_sgtl5000.h"
 #include "config_max98091.h"
 #include "config_tc358743.h"
+#include "cJSON.h"
 
 #ifdef BRILLO
 #define PCM_HW_PARAM_ACCESS 0
@@ -278,6 +281,72 @@ static int convert_record_data(void *src, void *dst, unsigned int frames, bool b
 
      return 0;
 }
+
+static int update_route_with_json(struct route_setting *route, const char * const json_file) {
+
+  if (!route)
+    return 0;
+
+  if (!json_file)
+    return 0;
+
+  int fd = open(json_file, O_RDONLY);
+  if (fd < 0) {
+    ALOGE("Unable to open overrides file '%s': %s", json_file, strerror(errno));
+    return 0;
+  }
+
+  off_t len = lseek(fd, 0, SEEK_END);
+  if (len < 0) {
+    ALOGE("Unable to seek overrides file '%s': %s", json_file, strerror(errno));
+    return 0;
+  }
+
+  void *json = mmap(0, len, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (json == MAP_FAILED) {
+    ALOGE("Unable to map overrides file '%s': %s", json_file, strerror(errno));
+    return 0;
+  }
+
+  cJSON *overrides = cJSON_Parse(json);
+  if (overrides == NULL) {
+    const char *error_ptr = cJSON_GetErrorPtr();
+    if (error_ptr != NULL) {
+      ALOGE("Audio overrides JSON parsing error: %s", error_ptr);
+    }
+    cJSON_Delete(overrides);
+    return 0;
+  }
+
+  int overrides_n = 0;
+  int i = 0;
+
+  while (route[i].ctl_name) {
+    cJSON *override = cJSON_GetObjectItemCaseSensitive(overrides, route[i].ctl_name);
+
+    if (cJSON_IsNumber(override)) {
+      if (route[i].intval != override->valueint) {
+        ALOGE("Overridden '%d' to '%d' for '%s'", route[i].intval, override->valueint, route[i].ctl_name);
+        route[i].intval = override->valueint;
+        overrides_n++;
+      }
+    } else if (cJSON_IsString(override)) {
+      if (strcmp(route[i].strval, override->valuestring) != 0) {
+        ALOGE("Overridden '%s' to '%s' for '%s'", route[i].strval, override->valuestring, route[i].ctl_name);
+        route[i].strval = override->valuestring;
+        overrides_n++;
+      }
+    }
+
+    i++;
+  }
+
+  ALOGE("Overridden %d properties from '%s' file", overrides_n, json_file);
+
+  cJSON_Delete(overrides);
+  return overrides_n;
+}
+
 
 /* The enable flag when 0 makes the assumption that enums are disabled by
  * "Off" and integers/booleans by 0 */
@@ -3419,8 +3488,13 @@ static int adev_open(const hw_module_t* module, const char* name,
 
     /* Set the default route before the PCM stream is opened */
     pthread_mutex_lock(&adev->lock);
-    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++)
-        set_route_by_array(adev->mixer[i], adev->card_list[i]->defaults, 1);
+    for(i = 0; i < MAX_AUDIO_CARD_NUM; i++) {
+      char overrides_filename [100];
+      snprintf(overrides_filename, 100, "/vendor/etc/audio_override_defaults_%d.json", i );
+
+      update_route_with_json(adev->card_list[i]->defaults, overrides_filename);
+      set_route_by_array(adev->mixer[i], adev->card_list[i]->defaults, 1);
+    }
     adev->mode    = AUDIO_MODE_NORMAL;
     adev->out_device = AUDIO_DEVICE_OUT_SPEAKER;
     adev->in_device  = AUDIO_DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN;
